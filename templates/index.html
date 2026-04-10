@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z.AI Key Monitor</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#0b0b14;--surface:#14142a;--surface2:#1c1c3a;--border:#2a2a50;
+            --text:#e8e8f8;--text2:#7878a0;--text3:#555580;
+            --accent:#7c5ce7;--accent2:#a78bfa;
+            --green:#34d399;--red:#f87171;--yellow:#fbbf24;--blue:#60a5fa;--orange:#fb923c;
+            --green-bg:rgba(52,211,153,.1);--red-bg:rgba(248,113,113,.1);
+            --yellow-bg:rgba(251,191,36,.1);--blue-bg:rgba(96,165,250,.1);
+        }
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .header{
+            background:linear-gradient(135deg,var(--surface),var(--surface2));
+            border-bottom:1px solid var(--border);padding:18px 28px;
+            display:flex;align-items:center;justify-content:space-between;
+        }
+        .header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px}
+        .header h1 span{
+            background:linear-gradient(135deg,var(--accent2),var(--accent));
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+        }
+        .live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(52,211,153,.4)}50%{opacity:.6;box-shadow:0 0 0 6px transparent}}
+
+        .main{max-width:1500px;margin:0 auto;padding:20px 24px}
+
+        /* Stats */
+        .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+        .stat-card{
+            background:var(--surface);border:1px solid var(--border);border-radius:10px;
+            padding:16px;text-align:center;transition:transform .15s,box-shadow .15s;
+        }
+        .stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+        .stat-num{font-size:28px;font-weight:800;line-height:1}
+        .stat-label{font-size:10px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:1.5px}
+        .c-total .stat-num{color:var(--accent2)}.c-valid .stat-num{color:var(--green)}
+        .c-invalid .stat-num{color:var(--red)}.c-error .stat-num{color:var(--yellow)}
+        .c-pending .stat-num{color:var(--text3)}
+
+        /* Panel */
+        .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+        .panel-title{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:600}
+
+        /* Tabs */
+        .tabs{display:flex;gap:6px;margin-bottom:14px}
+        .tab-btn{
+            padding:7px 18px;background:transparent;border:1px solid var(--border);border-radius:6px;
+            color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;transition:.2s;
+        }
+        .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+        .tab-btn:hover:not(.active){border-color:var(--accent2);color:var(--text)}
+        .tab-pane{display:none}.tab-pane.active{display:block}
+
+        /* Inputs */
+        .input-row{display:flex;gap:8px}
+        textarea,input[type="text"]{
+            flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+            padding:10px 14px;color:var(--text);font-size:13px;
+            font-family:'Consolas','Fira Code',monospace;resize:vertical;outline:none;transition:border .2s;
+        }
+        textarea:focus,input:focus{border-color:var(--accent)}
+        textarea{min-height:90px;width:100%}
+
+        /* Buttons */
+        .btn{
+            padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:12px;
+            font-weight:700;transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+        }
+        .btn:active{transform:scale(.97)}
+        .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2)}
+        .btn-go{background:linear-gradient(135deg,#059669,#10b981);color:#fff}.btn-go:hover{filter:brightness(1.1)}
+        .btn-del{background:#3b1120;color:var(--red);border:1px solid #5b1a30}.btn-del:hover{background:#5b1a30}
+        .btn-warn{background:#3b2e00;color:var(--yellow);border:1px solid #5b4500}.btn-warn:hover{background:#5b4500}
+        .btn-sm{padding:5px 12px;font-size:11px}
+
+        .action-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+        /* Search */
+        .toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+        .toolbar input{max-width:350px}
+
+        /* Table */
+        .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+        .table-scroll{overflow-x:auto}
+        table{width:100%;border-collapse:collapse;min-width:900px}
+        thead th{
+            background:var(--surface2);padding:12px 14px;text-align:left;font-size:10px;
+            text-transform:uppercase;letter-spacing:1.2px;color:var(--text2);
+            border-bottom:1px solid var(--border);position:sticky;top:0;
+        }
+        tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
+        tbody tr{transition:background .1s}
+        tbody tr:hover{background:rgba(124,92,231,.04)}
+
+        .key-cell{
+            font-family:'Consolas','Fira Code',monospace;font-size:11px;color:var(--accent2);
+            cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+            display:block;
+        }
+        .key-cell:hover{color:var(--text)}
+
+        /* Badges */
+        .badge{
+            display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;
+            font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+        }
+        .badge-valid{background:var(--green-bg);color:var(--green)}
+        .badge-invalid{background:var(--red-bg);color:var(--red)}
+        .badge-error{background:var(--yellow-bg);color:var(--yellow)}
+        .badge-pending{background:rgba(120,120,160,.1);color:var(--text3)}
+        .level-badge{
+            display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;
+            font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+        }
+        .level-lite{background:rgba(96,165,250,.12);color:var(--blue)}
+        .level-max{background:rgba(251,191,36,.18);color:var(--yellow);border:1px solid rgba(251,191,36,.35);box-shadow:0 0 8px rgba(251,191,36,.15)}
+        .level-pro{background:rgba(167,139,250,.12);color:var(--accent2)}
+        .level-enterprise{background:rgba(251,191,36,.12);color:var(--yellow)}
+        .level-unknown{background:rgba(120,120,160,.1);color:var(--text3)}
+
+        /* Quota */
+        .quota-wrap{min-width:200px}
+        .quota-row{margin-bottom:6px}
+        .quota-row:last-child{margin-bottom:0}
+        .quota-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+        .quota-type{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+        .quota-nums{font-size:11px;font-weight:600}
+        .quota-nums .used{color:var(--orange)}
+        .quota-nums .sep{color:var(--text3);margin:0 2px}
+        .quota-nums .total{color:var(--text2)}
+        .quota-nums .rem{color:var(--green);margin-left:6px;font-size:10px}
+        .bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+        .bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+        .bar-fill.high{background:var(--green)}.bar-fill.mid{background:var(--yellow)}.bar-fill.low{background:var(--red)}
+
+        .detail-row{margin-top:4px;font-size:10px;color:var(--text3);line-height:1.6}
+        .detail-row span{color:var(--text2);font-weight:600}
+
+        /* Expandable detail */
+        .expand-btn{
+            background:none;border:none;color:var(--accent2);cursor:pointer;font-size:11px;
+            padding:2px 6px;border-radius:4px;transition:.15s;
+        }
+        .expand-btn:hover{background:var(--surface2)}
+
+        /* Empty */
+        .empty{text-align:center;padding:50px 20px;color:var(--text3)}
+        .empty svg{margin-bottom:12px;opacity:.3}
+        .empty p{font-size:13px}
+
+        /* Modal */
+        .overlay{
+            display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;
+            justify-content:center;align-items:center;
+        }
+        .overlay.active{display:flex}
+        .modal{
+            background:var(--surface);border:1px solid var(--border);border-radius:14px;
+            padding:24px;max-width:700px;width:92%;max-height:80vh;overflow-y:auto;
+        }
+        .modal h3{margin-bottom:14px;color:var(--accent2);font-size:16px}
+        .modal pre{
+            background:var(--bg);border:1px solid var(--border);border-radius:8px;
+            padding:14px;font-size:12px;overflow-x:auto;color:var(--green);
+            font-family:'Consolas',monospace;white-space:pre-wrap;word-break:break-all;
+        }
+
+        /* Progress */
+        .prog-overlay{
+            display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;
+            justify-content:center;align-items:center;
+        }
+        .prog-overlay.active{display:flex}
+        .prog-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 36px;text-align:center}
+        .prog-box p{margin-bottom:12px;font-size:14px}
+        .prog-bar-outer{width:280px;height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+        .prog-bar-inner{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .3s}
+        .spinner{
+            display:inline-block;width:14px;height:14px;border:2px solid var(--border);
+            border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+            margin-right:8px;vertical-align:middle;
+        }
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* Toast */
+        .toast-box{position:fixed;top:16px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:6px}
+        .toast{
+            background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+            padding:10px 18px;font-size:12px;animation:slideIn .3s ease;min-width:220px;
+        }
+        .toast-ok{border-left:3px solid var(--green)}.toast-err{border-left:3px solid var(--red)}.toast-info{border-left:3px solid var(--blue)}
+        @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+        @media(max-width:900px){
+            .stats-row{grid-template-columns:repeat(3,1fr)}
+            .input-row{flex-direction:column}
+            .toolbar{flex-direction:column;align-items:stretch}
+            .toolbar input{max-width:100%}
+        }
+    </style>
+</head>
+<body>
+    <div class="toast-box" id="toasts"></div>
+
+    <div class="prog-overlay" id="progOverlay">
+        <div class="prog-box">
+            <p><span class="spinner"></span><span id="progText">Checking...</span></p>
+            <div class="prog-bar-outer"><div class="prog-bar-inner" id="progBar"></div></div>
+            <p style="margin-top:6px;font-size:11px;color:var(--text2)" id="progCount"></p>
+        </div>
+    </div>
+
+    <div class="overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle">Detail</h3>
+            <pre id="modalBody"></pre>
+            <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal()">Dong</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1><span class="live-dot"></span><span>Z.AI Key Monitor</span></h1>
+        <span style="font-size:11px;color:var(--text3)" id="lastUpdate">--</span>
+    </div>
+
+    <div class="main">
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card c-total"><div class="stat-num" id="sTotal">0</div><div class="stat-label">Tong</div></div>
+            <div class="stat-card c-valid"><div class="stat-num" id="sValid">0</div><div class="stat-label">Hop le</div></div>
+            <div class="stat-card c-invalid"><div class="stat-num" id="sInvalid">0</div><div class="stat-label">Khong hop le</div></div>
+            <div class="stat-card c-error"><div class="stat-num" id="sError">0</div><div class="stat-label">Loi</div></div>
+            <div class="stat-card c-pending"><div class="stat-num" id="sPending">0</div><div class="stat-label">Cho</div></div>
+        </div>
+
+        <!-- Add keys -->
+        <div class="panel">
+            <div class="panel-title">Them API Key</div>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('single',this)">1 Key</button>
+                <button class="tab-btn" onclick="switchTab('bulk',this)">List Key</button>
+            </div>
+            <div class="tab-pane active" id="tab-single">
+                <div class="input-row">
+                    <input type="text" id="inp1" placeholder="Nhap API key...">
+                    <button class="btn btn-go" onclick="addAndCheck1()">Them & Kiem tra</button>
+                </div>
+            </div>
+            <div class="tab-pane" id="tab-bulk">
+                <textarea id="inpBulk" placeholder="Nhap nhieu key, moi key 1 dong hoac cach nhau bang dau phay&#10;&#10;Vi du:&#10;d2786f1a180f46a6b434a8588c1445a8.DZNmPp9hyPX7GNyK&#10;key2, key3, key4"></textarea>
+                <div class="action-bar" style="margin-top:10px">
+                    <button class="btn btn-go" onclick="addAndCheckBulk()">Them & Kiem tra tat ca</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <input type="text" id="searchInp" placeholder="Tim kiem key..." oninput="loadKeys()">
+            <button class="btn btn-go" onclick="validateAll()">Kiem tra tat ca</button>
+            <button class="btn btn-del" onclick="clearAll()">Xoa tat ca</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:35px">#</th>
+                            <th>API Key</th>
+                            <th>Trang thai</th>
+                            <th>Level</th>
+                            <th>Thong tin su dung</th>
+                            <th>Kiem tra luc</th>
+                            <th>Ngay them</th>
+                            <th style="width:160px">Hanh dong</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+function toast(msg, type='info') {
+    const c = document.getElementById('toasts');
+    const d = document.createElement('div');
+    d.className = 'toast toast-' + ({success:'ok',error:'err'}[type]||'info');
+    d.textContent = msg;
+    c.appendChild(d);
+    setTimeout(() => d.remove(), 3000);
+}
+
+function showModal(title, body) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+    document.getElementById('modalOverlay').classList.add('active');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target.id === 'modalOverlay') closeModal(); });
+
+function showProg(text) {
+    document.getElementById('progText').textContent = text;
+    document.getElementById('progBar').style.width = '0%';
+    document.getElementById('progCount').textContent = '';
+    document.getElementById('progOverlay').classList.add('active');
+}
+function updProg(i, n) {
+    document.getElementById('progBar').style.width = Math.round(i/n*100) + '%';
+    document.getElementById('progCount').textContent = i + ' / ' + n;
+}
+function hideProg() { document.getElementById('progOverlay').classList.remove('active'); }
+
+function fmtReset(ts) {
+    if (!ts) return '--';
+    return new Date(ts).toLocaleString('vi-VN');
+}
+
+function renderLimits(limits) {
+    if (!limits || !limits.length) return '<span style="color:var(--text3)">Chua co du lieu</span>';
+    let html = '';
+    for (const lim of limits) {
+        const type = lim.type || 'UNKNOWN';
+        const label = type === 'TIME_LIMIT' ? 'Goi cuoc' : type === 'TOKENS_LIMIT' ? 'Token' : type;
+
+        let used = lim.currentValue != null ? lim.currentValue : (lim.usage != null ? lim.usage : null);
+        let total = lim.usage != null && lim.currentValue != null ? lim.usage : lim.number;
+        let remaining = lim.remaining;
+        let pct = lim.percentage != null ? lim.percentage : (total > 0 ? Math.round(used / total * 100) : 0);
+        let barPct = remaining != null && total > 0 ? Math.round(remaining / total * 100) : (100 - pct);
+        let barCls = barPct > 60 ? 'high' : barPct > 25 ? 'mid' : 'low';
+
+        let resetStr = lim.nextResetTime ? new Date(lim.nextResetTime).toLocaleString('vi-VN') : null;
+        let resetCountdown = '';
+        if (lim.nextResetTime) {
+            const diff = lim.nextResetTime - Date.now();
+            if (diff > 0) {
+                const d = Math.floor(diff / 86400000);
+                const h = Math.floor((diff % 86400000) / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                resetCountdown = (d > 0 ? d + 'd ' : '') + h + 'h ' + m + 'm';
+            } else {
+                resetCountdown = 'Ready';
+            }
+        }
+
+        if (type === 'TIME_LIMIT') {
+            html += `<div class="quota-row">
+                <div class="quota-header">
+                    <span class="quota-type">${label}</span>
+                    <span class="quota-nums">
+                        <span class="used">${used != null ? used : '?'}</span>
+                        <span class="sep">/</span>
+                        <span class="total">${total != null ? total : '?'}</span>
+                        <span class="rem">(con ${remaining != null ? remaining : '?'})</span>
+                    </span>
+                </div>
+                <div class="bar"><div class="bar-fill ${barCls}" style="width:${barPct}%"></div></div>`;
+            if (resetStr) {
+                html += `<div class="detail-row"><span>Reset:</span> ${resetStr} <span style="color:var(--accent2)">(${resetCountdown})</span></div>`;
+            }
+            if (lim.usageDetails && lim.usageDetails.length) {
+                html += '<div class="detail-row">';
+                for (const d of lim.usageDetails) {
+                    html += `<span>${d.modelCode}</span>: ${d.usage} &nbsp; `;
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        } else {
+            html += `<div class="quota-row">
+                <div class="quota-header">
+                    <span class="quota-type">${label}</span>
+                    <span class="quota-nums">
+                        <span class="used">${lim.percentage != null ? lim.percentage + '%' : '?'}</span>
+                    </span>
+                </div>`;
+            if (resetStr) {
+                html += `<div class="detail-row"><span>Reset:</span> ${resetStr} <span style="color:var(--accent2)">(${resetCountdown})</span></div>`;
+            }
+            html += '</div>';
+        }
+    }
+    return html;
+}
+
+function levelClass(level) {
+    if (!level) return 'level-unknown';
+    const l = level.toLowerCase();
+    if (l.includes('max')) return 'level-max';
+    if (l.includes('pro')) return 'level-pro';
+    if (l.includes('enterprise') || l.includes('premium')) return 'level-enterprise';
+    return 'level-lite';
+}
+
+async function addAndCheck1() {
+    const inp = document.getElementById('inp1');
+    const key = inp.value.trim();
+    if (!key) return toast('Nhap key truoc', 'error');
+    inp.value = '';
+    toast('Dang kiem tra...', 'info');
+    await fetch('/api/keys', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    await fetch('/api/validate/' + encodeURIComponent(key), {method:'POST'});
+    toast('Done!', 'success');
+    loadKeys(); loadStats();
+}
+
+async function addAndCheckBulk() {
+    const ta = document.getElementById('inpBulk');
+    const text = ta.value.trim();
+    if (!text) return toast('Nhap key truoc', 'error');
+    try {
+        const r = await fetch('/api/keys', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keys:text})});
+        const d = await r.json();
+        const keys = d.added || [];
+        if (!keys.length) { toast('Khong co key moi', 'error'); return; }
+        ta.value = '';
+        showProg('Dang kiem tra ' + keys.length + ' key...');
+        let done = 0;
+        for (const k of keys) {
+            await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+            done++;
+            updProg(done, keys.length);
+        }
+        hideProg();
+        toast('Da kiem tra ' + done + ' key', 'success');
+        loadKeys(); loadStats();
+    } catch(e) { hideProg(); toast(e.message, 'error'); }
+}
+
+async function validateAll() {
+    let keys = [];
+    try {
+        const s = document.getElementById('searchInp').value.trim().toLowerCase();
+        const r = await fetch('/api/keys' + (s ? '?search=' + encodeURIComponent(s) : ''));
+        keys = Object.keys(await r.json());
+    } catch(e) { return toast('Loi', 'error'); }
+    if (!keys.length) return toast('Khong co key', 'error');
+    showProg('Dang kiem tra ' + keys.length + ' key...');
+    let done = 0;
+    for (const k of keys) {
+        await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+        done++;
+        updProg(done, keys.length);
+    }
+    hideProg();
+    toast('Done ' + done + ' key', 'success');
+    loadKeys(); loadStats();
+}
+
+async function validateKey(key) {
+    toast('Checking...', 'info');
+    await fetch('/api/validate/' + encodeURIComponent(key), {method:'POST'});
+    toast('Done', 'success');
+    loadKeys(); loadStats();
+}
+
+async function deleteKey(key) {
+    await fetch('/api/keys/' + encodeURIComponent(key), {method:'DELETE'});
+    toast('Da xoa', 'success');
+    loadKeys(); loadStats();
+}
+
+async function clearAll() {
+    if (!confirm('Xoa tat ca key?')) return;
+    await fetch('/api/keys/clear', {method:'POST'});
+    toast('Da xoa tat ca', 'success');
+    loadKeys(); loadStats();
+}
+
+function viewDetail(key) {
+    const keys = window._keys || {};
+    const entry = keys[key];
+    if (entry && entry.raw_response) {
+        showModal('Response: ' + key.substring(0, 35) + '...', entry.raw_response);
+    } else {
+        showModal('Key: ' + key.substring(0, 35) + '...', 'Chua co du lieu. Bam Kiem tra truoc.');
+    }
+}
+
+async function loadKeys() {
+    try {
+        const s = document.getElementById('searchInp').value.trim().toLowerCase();
+        const r = await fetch('/api/keys' + (s ? '?search=' + encodeURIComponent(s) : ''));
+        const keys = await r.json();
+        window._keys = keys;
+        renderTable(keys);
+    } catch(e) {}
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('vi-VN');
+}
+
+async function loadStats() {
+    try {
+        const r = await fetch('/api/stats');
+        const s = await r.json();
+        document.getElementById('sTotal').textContent = s.total;
+        document.getElementById('sValid').textContent = s.valid;
+        document.getElementById('sInvalid').textContent = s.invalid;
+        document.getElementById('sError').textContent = s.error;
+        document.getElementById('sPending').textContent = s.pending;
+    } catch(e) {}
+}
+
+function renderTable(keys) {
+    const tbody = document.getElementById('tbody');
+    const entries = Object.entries(keys);
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg><p>Chua co key. Them key o tren de bat dau.</p></div></td></tr>';
+        return;
+    }
+    let html = '';
+    let idx = 0;
+    for (const [key, e] of entries) {
+        idx++;
+        const statusMap = {valid:'HOP LE',invalid:'KHONG HOP LE',error:'LOI',pending:'CHO KIEM TRA'};
+        const stBadge = `<span class="badge badge-${e.status}">${statusMap[e.status]||e.status}</span>`;
+        const lvBadge = e.level ? `<span class="level-badge ${levelClass(e.level)}">${e.level.toUpperCase()}</span>` : '<span style="color:var(--text3)">--</span>';
+        const limitsHtml = renderLimits(e.limits);
+
+        html += `<tr>
+            <td style="color:var(--text3)">${idx}</td>
+            <td><span class="key-cell" title="${key}" onclick="navigator.clipboard.writeText('${key}');toast('Copied!','success')">${key}</span></td>
+            <td>${stBadge}</td>
+            <td>${lvBadge}</td>
+            <td><div class="quota-wrap">${limitsHtml}</div></td>
+            <td style="font-size:11px;color:var(--text3)">${e.last_checked || '--'}</td>
+            <td style="font-size:11px;color:var(--text3)">${e.created_at || '--'}</td>
+            <td>
+                <div class="action-bar">
+                    <button class="btn btn-go btn-sm" onclick="validateKey('${key}')">Kiem tra</button>
+                    <button class="btn btn-warn btn-sm" onclick="viewDetail('${key}')">Chi tiet</button>
+                    <button class="btn btn-del btn-sm" onclick="deleteKey('${key}')">Xoa</button>
+                </div>
+            </td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+document.getElementById('inp1').addEventListener('keydown', e => { if (e.key === 'Enter') addAndCheck1(); });
+
+loadKeys(); loadStats();
+setInterval(() => { loadKeys(); loadStats(); }, 30000);
+</script>
+</body>
+</html>
