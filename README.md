@@ -2,6 +2,8 @@
 
 Web application giám sát API key Z.AI - kiểm tra xác thực, level, quota và thời gian reset theo thời gian thực.
 
+<img width="1901" height="908" alt="image" src="https://github.com/user-attachments/assets/0ab6d024-1618-4953-856f-e96310c92634" />
+
 ## Tính năng
 
 - **Thêm key đơn hoặc theo list** - Nhập 1 key hoặc nhiều key cùng lúc (cách nhau bởi dòng mới, dấu phẩy, chấm phẩy)
