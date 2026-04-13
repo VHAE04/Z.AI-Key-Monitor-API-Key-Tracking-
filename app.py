@@ -1,12 +1,14 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response
 import sqlite3
 import json as json_mod
 import requests as req_lib
 from datetime import datetime
 import threading
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'keys.db')
 API_URL = "https://api.z.ai/api/monitor/usage/quota/limit"
@@ -102,17 +104,48 @@ def db_clear_all():
             conn.close()
 
 
-def db_get_all_keys(search=''):
+def db_remove_unknown_keys():
+    with db_lock:
+        conn = get_db()
+        try:
+            cur = conn.execute("DELETE FROM keys WHERE LOWER(level) = 'unknown' OR (status = 'valid' AND (level IS NULL OR level = ''))")
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()
+
+
+ALLOWED_SORT_COLUMNS = {'id', 'key', 'status', 'level', 'last_checked', 'created_at'}
+
+LEVEL_ORDER_CASE = (
+    "CASE LOWER(level) "
+    "WHEN 'max' THEN 1 "
+    "WHEN 'pro' THEN 2 "
+    "WHEN 'lite' THEN 3 "
+    "WHEN 'enterprise' THEN 0 "
+    "WHEN 'unknown' THEN 5 "
+    "ELSE 4 END"
+)
+
+
+def db_get_all_keys(search='', sort_by='id', sort_order='desc'):
+    if sort_by not in ALLOWED_SORT_COLUMNS:
+        sort_by = 'id'
+    sort_order_sql = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
+    if sort_by == 'level':
+        order_clause = f"{LEVEL_ORDER_CASE} {sort_order_sql}, level {sort_order_sql}"
+    else:
+        order_clause = f"{sort_by} {sort_order_sql}"
     with db_lock:
         conn = get_db()
         try:
             if search:
                 rows = conn.execute(
-                    "SELECT * FROM keys WHERE LOWER(key) LIKE ? OR LOWER(level) LIKE ? ORDER BY id DESC",
+                    f"SELECT * FROM keys WHERE LOWER(key) LIKE ? OR LOWER(level) LIKE ? ORDER BY {order_clause}",
                     (f'%{search}%', f'%{search}%')
                 ).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM keys ORDER BY id DESC").fetchall()
+                rows = conn.execute(f"SELECT * FROM keys ORDER BY {order_clause}").fetchall()
             return [row_to_dict(r) for r in rows]
         finally:
             conn.close()
@@ -213,10 +246,13 @@ def index():
 @app.route('/api/keys', methods=['GET'])
 def get_keys():
     search = request.args.get('search', '').lower()
-    rows = db_get_all_keys(search)
-    result = {}
+    sort_by = request.args.get('sort_by', 'id')
+    sort_order = request.args.get('sort_order', 'desc')
+    rows = db_get_all_keys(search, sort_by, sort_order)
+    result = []
     for r in rows:
-        result[r['key']] = {
+        result.append({
+            'key': r['key'],
             'status': r['status'],
             'last_checked': r['last_checked'],
             'level': r['level'],
@@ -224,8 +260,8 @@ def get_keys():
             'raw_response': r['raw_response'],
             'error': r['error'],
             'created_at': r['created_at']
-        }
-    return jsonify(result)
+        })
+    return Response(json_mod.dumps(result), mimetype='application/json')
 
 
 @app.route('/api/keys', methods=['POST'])
@@ -242,9 +278,12 @@ def add_key():
     return jsonify({'error': 'Key required'}), 400
 
 
-@app.route('/api/keys/<key>', methods=['DELETE'])
-def delete_key(key):
-    db_remove_key(key)
+@app.route('/api/keys/delete', methods=['POST'])
+def delete_key():
+    data = request.get_json()
+    if not data or 'key' not in data:
+        return jsonify({'error': 'Key required'}), 400
+    db_remove_key(data['key'].strip())
     return jsonify({'message': 'Key removed'})
 
 
@@ -252,6 +291,12 @@ def delete_key(key):
 def clear_keys():
     db_clear_all()
     return jsonify({'message': 'All keys cleared'})
+
+
+@app.route('/api/keys/delete-unknown', methods=['POST'])
+def delete_unknown_keys():
+    count = db_remove_unknown_keys()
+    return jsonify({'message': f'Deleted {count} unknown keys', 'deleted': count})
 
 
 @app.route('/api/validate/<key>', methods=['POST'])
@@ -262,10 +307,22 @@ def validate_single(key):
 
 @app.route('/api/validate-all', methods=['POST'])
 def validate_all():
+    data = request.get_json(silent=True) or {}
+    workers = max(1, min(20, data.get('workers', 1)))
     rows = db_get_all_keys()
     results = {}
-    for r in rows:
-        results[r['key']] = validate_key(r['key'])
+    if workers <= 1:
+        for r in rows:
+            results[r['key']] = validate_key(r['key'])
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_map = {executor.submit(validate_key, r['key']): r['key'] for r in rows}
+            for future in as_completed(future_map):
+                key = future_map[future]
+                try:
+                    results[key] = future.result()
+                except Exception as e:
+                    results[key] = {'valid': False, 'error': str(e)}
     return jsonify(results)
 
 
@@ -275,4 +332,4 @@ def get_stats():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='127.0.0.1', port=9090   )
