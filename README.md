@@ -28,7 +28,7 @@ pip install flask requests
 python app.py
 ```
 
-Truy cập: `http://localhost:5000`
+Truy cập: `http://localhost:9090`
 
 ## Cấu trúc
 
