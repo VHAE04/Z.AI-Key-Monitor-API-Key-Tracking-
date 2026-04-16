@@ -59,13 +59,14 @@
 
         /* Inputs */
         .input-row{display:flex;gap:8px}
-        textarea,input[type="text"]{
+        textarea,input[type="text"],input[type="number"]{
             flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;
             padding:10px 14px;color:var(--text);font-size:13px;
             font-family:'Consolas','Fira Code',monospace;resize:vertical;outline:none;transition:border .2s;
         }
         textarea:focus,input:focus{border-color:var(--accent)}
         textarea{min-height:90px;width:100%}
+        input[type="number"]{width:70px;flex:none;text-align:center}
 
         /* Buttons */
         .btn{
@@ -77,6 +78,7 @@
         .btn-go{background:linear-gradient(135deg,#059669,#10b981);color:#fff}.btn-go:hover{filter:brightness(1.1)}
         .btn-del{background:#3b1120;color:var(--red);border:1px solid #5b1a30}.btn-del:hover{background:#5b1a30}
         .btn-warn{background:#3b2e00;color:var(--yellow);border:1px solid #5b4500}.btn-warn:hover{background:#5b4500}
+        .btn-copy{background:#1a2a3b;color:var(--blue);border:1px solid #2a4a6b}.btn-copy:hover{background:#2a4a6b}
         .btn-sm{padding:5px 12px;font-size:11px}
 
         .action-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -84,6 +86,33 @@
         /* Search */
         .toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
         .toolbar input{max-width:350px}
+
+        /* Worker config */
+        .worker-config{
+            display:flex;align-items:center;gap:8px;
+            background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+            padding:6px 12px;font-size:12px;color:var(--text2);
+        }
+        .worker-config input[type="number"]{
+            padding:5px 8px;font-size:12px;border-radius:6px;
+        }
+        .worker-config label{white-space:nowrap}
+
+        /* Copy level dropdown */
+        .copy-dropdown{position:relative;display:inline-block}
+        .copy-menu{
+            display:none;position:absolute;top:100%;left:0;margin-top:4px;
+            background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+            min-width:160px;z-index:100;overflow:hidden;
+        }
+        .copy-menu.show{display:block}
+        .copy-menu-item{
+            padding:8px 14px;cursor:pointer;font-size:12px;color:var(--text);
+            transition:background .15s;display:flex;align-items:center;gap:8px;
+        }
+        .copy-menu-item:hover{background:var(--accent);color:#fff}
+        .copy-menu-item .cnt{color:var(--text3);font-size:10px;margin-left:auto}
+        .copy-menu-item:hover .cnt{color:rgba(255,255,255,.7)}
 
         /* Table */
         .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
@@ -94,6 +123,11 @@
             text-transform:uppercase;letter-spacing:1.2px;color:var(--text2);
             border-bottom:1px solid var(--border);position:sticky;top:0;
         }
+        thead th.sortable{cursor:pointer;user-select:none}
+        thead th.sortable:hover{color:var(--accent2)}
+        thead th.sortable:hover .sort-icon{color:var(--accent2)}
+        .sort-icon{font-size:10px;margin-left:2px;color:var(--text3);opacity:.5}
+        .sort-icon.active{opacity:1;color:var(--accent2)}
         tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
         tbody tr{transition:background .1s}
         tbody tr:hover{background:rgba(124,92,231,.04)}
@@ -220,7 +254,7 @@
         <div class="modal">
             <h3 id="modalTitle">Detail</h3>
             <pre id="modalBody"></pre>
-            <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal()">Dong</button>
+            <button class="btn btn-primary" style="margin-top:14px" onclick="closeModal()">Đóng</button>
         </div>
     </div>
 
@@ -232,39 +266,49 @@
     <div class="main">
         <!-- Stats -->
         <div class="stats-row">
-            <div class="stat-card c-total"><div class="stat-num" id="sTotal">0</div><div class="stat-label">Tong</div></div>
-            <div class="stat-card c-valid"><div class="stat-num" id="sValid">0</div><div class="stat-label">Hop le</div></div>
-            <div class="stat-card c-invalid"><div class="stat-num" id="sInvalid">0</div><div class="stat-label">Khong hop le</div></div>
-            <div class="stat-card c-error"><div class="stat-num" id="sError">0</div><div class="stat-label">Loi</div></div>
-            <div class="stat-card c-pending"><div class="stat-num" id="sPending">0</div><div class="stat-label">Cho</div></div>
+            <div class="stat-card c-total"><div class="stat-num" id="sTotal">0</div><div class="stat-label">Tổng</div></div>
+            <div class="stat-card c-valid"><div class="stat-num" id="sValid">0</div><div class="stat-label">Hợp lệ</div></div>
+            <div class="stat-card c-invalid"><div class="stat-num" id="sInvalid">0</div><div class="stat-label">Không hợp lệ</div></div>
+            <div class="stat-card c-error"><div class="stat-num" id="sError">0</div><div class="stat-label">Lỗi</div></div>
+            <div class="stat-card c-pending"><div class="stat-num" id="sPending">0</div><div class="stat-label">Chờ</div></div>
         </div>
 
         <!-- Add keys -->
         <div class="panel">
-            <div class="panel-title">Them API Key</div>
+            <div class="panel-title">Thêm API Key</div>
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('single',this)">1 Key</button>
                 <button class="tab-btn" onclick="switchTab('bulk',this)">List Key</button>
             </div>
             <div class="tab-pane active" id="tab-single">
                 <div class="input-row">
-                    <input type="text" id="inp1" placeholder="Nhap API key...">
-                    <button class="btn btn-go" onclick="addAndCheck1()">Them & Kiem tra</button>
+                    <input type="text" id="inp1" placeholder="Nhập API key...">
+                    <button class="btn btn-go" onclick="addAndCheck1()">Thêm & Kiểm tra</button>
                 </div>
             </div>
             <div class="tab-pane" id="tab-bulk">
-                <textarea id="inpBulk" placeholder="Nhap nhieu key, moi key 1 dong hoac cach nhau bang dau phay&#10;&#10;Vi du:&#10;d2786f1a180f46a6b434a8588c1445a8.DZNmPp9hyPX7GNyK&#10;key2, key3, key4"></textarea>
+                <textarea id="inpBulk" placeholder="Nhập nhiều key, mỗi key 1 dòng hoặc cách nhau bằng dấu phẩy&#10;&#10;Ví dụ:&#10;d2786f1a180f46a6b434a8588c1445a8.DZNmPp9hyPX7GNyK&#10;key2, key3, key4"></textarea>
                 <div class="action-bar" style="margin-top:10px">
-                    <button class="btn btn-go" onclick="addAndCheckBulk()">Them & Kiem tra tat ca</button>
+                    <button class="btn btn-go" onclick="addAndCheckBulk()">Thêm & Kiểm tra tất cả</button>
                 </div>
             </div>
         </div>
 
         <!-- Toolbar -->
         <div class="toolbar">
-            <input type="text" id="searchInp" placeholder="Tim kiem key..." oninput="loadKeys()">
-            <button class="btn btn-go" onclick="validateAll()">Kiem tra tat ca</button>
-            <button class="btn btn-del" onclick="clearAll()">Xoa tat ca</button>
+            <input type="text" id="searchInp" placeholder="Tìm kiếm key..." oninput="loadKeys()">
+            <div class="worker-config">
+                <label>Luồng check:</label>
+                <input type="number" id="workerCount" value="5" min="1" max="20">
+            </div>
+            <button class="btn btn-go" onclick="validateAll()">Kiểm tra tất cả</button>
+            <button class="btn btn-copy" onclick="copyAllKeys()">📋 Copy tất cả key</button>
+            <div class="copy-dropdown">
+                <button class="btn btn-copy" onclick="toggleCopyMenu()">📋 Copy theo Level ▾</button>
+                <div class="copy-menu" id="copyMenu"></div>
+            </div>
+            <button class="btn btn-del" onclick="clearAll()">Xóa tất cả</button>
+            <button class="btn btn-del" onclick="deleteUnknown()">Xóa UNKNOWN</button>
         </div>
 
         <!-- Table -->
@@ -274,13 +318,13 @@
                     <thead>
                         <tr>
                             <th style="width:35px">#</th>
-                            <th>API Key</th>
-                            <th>Trang thai</th>
-                            <th>Level</th>
-                            <th>Thong tin su dung</th>
-                            <th>Kiem tra luc</th>
-                            <th>Ngay them</th>
-                            <th style="width:160px">Hanh dong</th>
+                            <th class="sortable" onclick="toggleSort('key')">API Key <span class="sort-icon" data-col="key"></span></th>
+                            <th class="sortable" onclick="toggleSort('status')">Trạng thái <span class="sort-icon" data-col="status"></span></th>
+                            <th class="sortable" onclick="toggleSort('level')">Level <span class="sort-icon" data-col="level"></span></th>
+                            <th>Thông tin sử dụng</th>
+                            <th class="sortable" onclick="toggleSort('last_checked')">Kiểm tra lúc <span class="sort-icon" data-col="last_checked"></span></th>
+                            <th class="sortable" onclick="toggleSort('created_at')">Ngày thêm <span class="sort-icon" data-col="created_at"></span></th>
+                            <th style="width:160px">Hành động</th>
                         </tr>
                     </thead>
                     <tbody id="tbody"></tbody>
@@ -290,11 +334,49 @@
     </div>
 
 <script>
+// Global state
+let _keysData = {};
+let _keyIndex = [];
+let _sortBy = 'id';
+let _sortOrder = 'desc';
+
 function switchTab(name, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + name).classList.add('active');
+}
+
+function toggleSort(col) {
+    if (_sortBy === col) {
+        _sortOrder = _sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        _sortBy = col;
+        _sortOrder = 'asc';
+    }
+    updateSortIcons();
+    loadKeys();
+}
+
+function updateSortIcons() {
+    document.querySelectorAll('.sort-icon').forEach(el => {
+        const col = el.getAttribute('data-col');
+        if (col === _sortBy) {
+            el.classList.add('active');
+            el.textContent = _sortOrder === 'asc' ? ' ▲' : ' ▼';
+        } else {
+            el.classList.remove('active');
+            el.textContent = '';
+        }
+    });
+}
+
+async function deleteUnknown() {
+    if (!confirm('Xóa toàn bộ key UNKNOWN?')) return;
+    const r = await fetch('/api/keys/delete-unknown', {method:'POST'});
+    const d = await r.json();
+    toast(d.message, 'success');
+    loadKeys(); loadStats();
 }
 
 function toast(msg, type='info') {
@@ -326,17 +408,23 @@ function updProg(i, n) {
 }
 function hideProg() { document.getElementById('progOverlay').classList.remove('active'); }
 
-function fmtReset(ts) {
-    if (!ts) return '--';
-    return new Date(ts).toLocaleString('vi-VN');
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"').replace(/'/g,'&#39;');
 }
 
+function getWorkerCount() {
+    return Math.max(1, Math.min(20, parseInt(document.getElementById('workerCount').value) || 1));
+}
+
+// ============= RENDERING =============
+
 function renderLimits(limits) {
-    if (!limits || !limits.length) return '<span style="color:var(--text3)">Chua co du lieu</span>';
+    if (!limits || !limits.length) return '<span style="color:var(--text3)">Chưa có dữ liệu</span>';
     let html = '';
     for (const lim of limits) {
         const type = lim.type || 'UNKNOWN';
-        const label = type === 'TIME_LIMIT' ? 'Goi cuoc' : type === 'TOKENS_LIMIT' ? 'Token' : type;
+        const label = type === 'TIME_LIMIT' ? 'Gói cuộc' : type === 'TOKENS_LIMIT' ? 'Token' : type;
 
         let used = lim.currentValue != null ? lim.currentValue : (lim.usage != null ? lim.usage : null);
         let total = lim.usage != null && lim.currentValue != null ? lim.usage : lim.number;
@@ -367,7 +455,7 @@ function renderLimits(limits) {
                         <span class="used">${used != null ? used : '?'}</span>
                         <span class="sep">/</span>
                         <span class="total">${total != null ? total : '?'}</span>
-                        <span class="rem">(con ${remaining != null ? remaining : '?'})</span>
+                        <span class="rem">(còn ${remaining != null ? remaining : '?'})</span>
                     </span>
                 </div>
                 <div class="bar"><div class="bar-fill ${barCls}" style="width:${barPct}%"></div></div>`;
@@ -408,12 +496,173 @@ function levelClass(level) {
     return 'level-lite';
 }
 
+function renderTable(keysList) {
+    const tbody = document.getElementById('tbody');
+    _keysData = {};
+    _keyIndex = [];
+    for (const item of keysList) {
+        _keyIndex.push(item.key);
+        _keysData[item.key] = item;
+    }
+
+    if (!keysList.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg><p>Chưa có key. Thêm key ở trên để bắt đầu.</p></div></td></tr>';
+        return;
+    }
+    let html = '';
+    for (let i = 0; i < keysList.length; i++) {
+        const e = keysList[i];
+        const idx = i + 1;
+        const statusMap = {valid:'HỢP LỆ',invalid:'KHÔNG HỢP LỆ',error:'LỖI',pending:'CHỜ KIỂM TRA'};
+        const stBadge = `<span class="badge badge-${e.status}">${statusMap[e.status]||e.status}</span>`;
+        const lvBadge = e.level ? `<span class="level-badge ${levelClass(e.level)}">${e.level.toUpperCase()}</span>` : '<span style="color:var(--text3)">--</span>';
+        const limitsHtml = renderLimits(e.limits);
+
+        html += `<tr>
+            <td style="color:var(--text3)">${idx}</td>
+            <td><span class="key-cell" title="${escapeHtml(e.key)}" onclick="copyKeyByIndex(${i})">${escapeHtml(e.key)}</span></td>
+            <td>${stBadge}</td>
+            <td>${lvBadge}</td>
+            <td><div class="quota-wrap">${limitsHtml}</div></td>
+            <td style="font-size:11px;color:var(--text3)">${e.last_checked || '--'}</td>
+            <td style="font-size:11px;color:var(--text3)">${e.created_at || '--'}</td>
+            <td>
+                <div class="action-bar">
+                    <button class="btn btn-go btn-sm" onclick="validateKeyByIdx(${i})">Kiểm tra</button>
+                    <button class="btn btn-warn btn-sm" onclick="viewDetailByIdx(${i})">Chi tiết</button>
+                    <button class="btn btn-del btn-sm" onclick="deleteKeyByIdx(${i})">Xóa</button>
+                </div>
+            </td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+// ============= INDEX-BASED ACTIONS (avoid key in onclick) =============
+
+function copyKeyByIndex(idx) {
+    const key = _keyIndex[idx];
+    if (key) {
+        navigator.clipboard.writeText(key).then(() => toast('Đã copy key!', 'success'));
+    }
+}
+
+function validateKeyByIdx(idx) {
+    const key = _keyIndex[idx];
+    if (!key) return toast('Key không tồn tại', 'error');
+    toast('Đang kiểm tra...', 'info');
+    fetch('/api/validate/' + encodeURIComponent(key), {method:'POST'})
+        .then(() => { toast('Done', 'success'); loadKeys(); loadStats(); })
+        .catch(e => toast(e.message, 'error'));
+}
+
+function viewDetailByIdx(idx) {
+    const key = _keyIndex[idx];
+    if (!key) return;
+    const entry = _keysData[key];
+    if (entry && entry.raw_response) {
+        showModal('Response: ' + key.substring(0, 35) + '...', entry.raw_response);
+    } else {
+        showModal('Key: ' + key.substring(0, 35) + '...', 'Chưa có dữ liệu. Bấm Kiểm tra trước.');
+    }
+}
+
+function deleteKeyByIdx(idx) {
+    const key = _keyIndex[idx];
+    if (!key) return toast('Key không tồn tại', 'error');
+    fetch('/api/keys/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: key})
+    })
+    .then(r => r.json())
+    .then(() => { toast('Đã xóa key', 'success'); loadKeys(); loadStats(); })
+    .catch(e => toast('Lỗi xóa: ' + e.message, 'error'));
+}
+
+// ============= COPY FEATURES =============
+
+function copyAllKeys() {
+    const keys = Object.keys(_keysData);
+    if (!keys.length) return toast('Không có key để copy', 'error');
+    navigator.clipboard.writeText(keys.join('\n')).then(() => {
+        toast('Đã copy ' + keys.length + ' key!', 'success');
+    });
+}
+
+function copyKeysByLevel(level) {
+    const keys = [];
+    for (const [k, v] of Object.entries(_keysData)) {
+        if (level === '__none__') {
+            if (!v.level) keys.push(k);
+        } else {
+            if (v.level && v.level.toLowerCase() === level.toLowerCase()) keys.push(k);
+        }
+    }
+    if (!keys.length) return toast('Không có key level "' + level + '"', 'error');
+    navigator.clipboard.writeText(keys.join('\n')).then(() => {
+        toast('Đã copy ' + keys.length + ' key level ' + level, 'success');
+    });
+    closeCopyMenu();
+}
+
+function toggleCopyMenu() {
+    const menu = document.getElementById('copyMenu');
+    if (menu.classList.contains('show')) {
+        menu.classList.remove('show');
+        return;
+    }
+    // Build menu from current data
+    const levelCounts = {};
+    let noLevelCount = 0;
+    for (const v of Object.values(_keysData)) {
+        if (v.level) {
+            const l = v.level.toLowerCase();
+            levelCounts[l] = (levelCounts[l] || 0) + 1;
+        } else {
+            noLevelCount++;
+        }
+    }
+    let html = '';
+    for (const [level, count] of Object.entries(levelCounts).sort((a,b) => b[1]-a[1])) {
+        html += `<div class="copy-menu-item" onclick="copyKeysByLevel('${escapeHtml(level)}')">
+            <span class="level-badge ${levelClass(level)}">${level.toUpperCase()}</span>
+            <span class="cnt">${count} key</span>
+        </div>`;
+    }
+    if (noLevelCount > 0) {
+        html += `<div class="copy-menu-item" onclick="copyKeysByLevel('__none__')">
+            <span style="color:var(--text3)">Chưa xác định</span>
+            <span class="cnt">${noLevelCount} key</span>
+        </div>`;
+    }
+    if (!html) {
+        html = '<div class="copy-menu-item" style="color:var(--text3);cursor:default">Không có key</div>';
+    }
+    menu.innerHTML = html;
+    menu.classList.add('show');
+}
+
+function closeCopyMenu() {
+    document.getElementById('copyMenu').classList.remove('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const dropdown = document.querySelector('.copy-dropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+        closeCopyMenu();
+    }
+});
+
+// ============= MAIN ACTIONS =============
+
 async function addAndCheck1() {
     const inp = document.getElementById('inp1');
     const key = inp.value.trim();
-    if (!key) return toast('Nhap key truoc', 'error');
+    if (!key) return toast('Nhập key trước', 'error');
     inp.value = '';
-    toast('Dang kiem tra...', 'info');
+    toast('Đang kiểm tra...', 'info');
     await fetch('/api/keys', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
     await fetch('/api/validate/' + encodeURIComponent(key), {method:'POST'});
     toast('Done!', 'success');
@@ -423,22 +672,36 @@ async function addAndCheck1() {
 async function addAndCheckBulk() {
     const ta = document.getElementById('inpBulk');
     const text = ta.value.trim();
-    if (!text) return toast('Nhap key truoc', 'error');
+    if (!text) return toast('Nhập key trước', 'error');
     try {
         const r = await fetch('/api/keys', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keys:text})});
         const d = await r.json();
         const keys = d.added || [];
-        if (!keys.length) { toast('Khong co key moi', 'error'); return; }
+        if (!keys.length) { toast('Không có key mới', 'error'); return; }
         ta.value = '';
-        showProg('Dang kiem tra ' + keys.length + ' key...');
+        const workers = getWorkerCount();
+        showProg('Đang kiểm tra ' + keys.length + ' key (' + workers + ' luồng)...');
         let done = 0;
-        for (const k of keys) {
-            await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
-            done++;
-            updProg(done, keys.length);
+        if (workers <= 1) {
+            for (const k of keys) {
+                await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+                done++;
+                updProg(done, keys.length);
+            }
+        } else {
+            // Use concurrent requests
+            const batchSize = workers;
+            for (let i = 0; i < keys.length; i += batchSize) {
+                const batch = keys.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (k) => {
+                    await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+                }));
+                done += batch.length;
+                updProg(done, keys.length);
+            }
         }
         hideProg();
-        toast('Da kiem tra ' + done + ' key', 'success');
+        toast('Đã kiểm tra ' + done + ' key', 'success');
         loadKeys(); loadStats();
     } catch(e) { hideProg(); toast(e.message, 'error'); }
 }
@@ -447,56 +710,57 @@ async function validateAll() {
     let keys = [];
     try {
         const s = document.getElementById('searchInp').value.trim().toLowerCase();
-        const r = await fetch('/api/keys' + (s ? '?search=' + encodeURIComponent(s) : ''));
-        keys = Object.keys(await r.json());
-    } catch(e) { return toast('Loi', 'error'); }
-    if (!keys.length) return toast('Khong co key', 'error');
-    showProg('Dang kiem tra ' + keys.length + ' key...');
+        const params = new URLSearchParams();
+        if (s) params.set('search', s);
+        params.set('sort_by', _sortBy);
+        params.set('sort_order', _sortOrder);
+        const r = await fetch('/api/keys?' + params.toString());
+        const data = await r.json();
+        keys = data.map(item => item.key);
+    } catch(e) { return toast('Lỗi', 'error'); }
+    if (!keys.length) return toast('Không có key', 'error');
+    const workers = getWorkerCount();
+    showProg('Đang kiểm tra ' + keys.length + ' key (' + workers + ' luồng)...');
     let done = 0;
-    for (const k of keys) {
-        await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
-        done++;
-        updProg(done, keys.length);
+    if (workers <= 1) {
+        for (const k of keys) {
+            await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+            done++;
+            updProg(done, keys.length);
+        }
+    } else {
+        const batchSize = workers;
+        for (let i = 0; i < keys.length; i += batchSize) {
+            const batch = keys.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (k) => {
+                await fetch('/api/validate/' + encodeURIComponent(k), {method:'POST'});
+            }));
+            done += batch.length;
+            updProg(done, keys.length);
+        }
     }
     hideProg();
     toast('Done ' + done + ' key', 'success');
     loadKeys(); loadStats();
 }
 
-async function validateKey(key) {
-    toast('Checking...', 'info');
-    await fetch('/api/validate/' + encodeURIComponent(key), {method:'POST'});
-    toast('Done', 'success');
-    loadKeys(); loadStats();
-}
-
-async function deleteKey(key) {
-    await fetch('/api/keys/' + encodeURIComponent(key), {method:'DELETE'});
-    toast('Da xoa', 'success');
-    loadKeys(); loadStats();
-}
-
 async function clearAll() {
-    if (!confirm('Xoa tat ca key?')) return;
+    if (!confirm('Xóa tất cả key?')) return;
     await fetch('/api/keys/clear', {method:'POST'});
-    toast('Da xoa tat ca', 'success');
+    toast('Đã xóa tất cả', 'success');
     loadKeys(); loadStats();
 }
 
-function viewDetail(key) {
-    const keys = window._keys || {};
-    const entry = keys[key];
-    if (entry && entry.raw_response) {
-        showModal('Response: ' + key.substring(0, 35) + '...', entry.raw_response);
-    } else {
-        showModal('Key: ' + key.substring(0, 35) + '...', 'Chua co du lieu. Bam Kiem tra truoc.');
-    }
-}
+// ============= LOAD DATA =============
 
 async function loadKeys() {
     try {
         const s = document.getElementById('searchInp').value.trim().toLowerCase();
-        const r = await fetch('/api/keys' + (s ? '?search=' + encodeURIComponent(s) : ''));
+        const params = new URLSearchParams();
+        if (s) params.set('search', s);
+        params.set('sort_by', _sortBy);
+        params.set('sort_order', _sortOrder);
+        const r = await fetch('/api/keys?' + params.toString());
         const keys = await r.json();
         window._keys = keys;
         renderTable(keys);
@@ -514,42 +778,6 @@ async function loadStats() {
         document.getElementById('sError').textContent = s.error;
         document.getElementById('sPending').textContent = s.pending;
     } catch(e) {}
-}
-
-function renderTable(keys) {
-    const tbody = document.getElementById('tbody');
-    const entries = Object.entries(keys);
-    if (!entries.length) {
-        tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg><p>Chua co key. Them key o tren de bat dau.</p></div></td></tr>';
-        return;
-    }
-    let html = '';
-    let idx = 0;
-    for (const [key, e] of entries) {
-        idx++;
-        const statusMap = {valid:'HOP LE',invalid:'KHONG HOP LE',error:'LOI',pending:'CHO KIEM TRA'};
-        const stBadge = `<span class="badge badge-${e.status}">${statusMap[e.status]||e.status}</span>`;
-        const lvBadge = e.level ? `<span class="level-badge ${levelClass(e.level)}">${e.level.toUpperCase()}</span>` : '<span style="color:var(--text3)">--</span>';
-        const limitsHtml = renderLimits(e.limits);
-
-        html += `<tr>
-            <td style="color:var(--text3)">${idx}</td>
-            <td><span class="key-cell" title="${key}" onclick="navigator.clipboard.writeText('${key}');toast('Copied!','success')">${key}</span></td>
-            <td>${stBadge}</td>
-            <td>${lvBadge}</td>
-            <td><div class="quota-wrap">${limitsHtml}</div></td>
-            <td style="font-size:11px;color:var(--text3)">${e.last_checked || '--'}</td>
-            <td style="font-size:11px;color:var(--text3)">${e.created_at || '--'}</td>
-            <td>
-                <div class="action-bar">
-                    <button class="btn btn-go btn-sm" onclick="validateKey('${key}')">Kiem tra</button>
-                    <button class="btn btn-warn btn-sm" onclick="viewDetail('${key}')">Chi tiet</button>
-                    <button class="btn btn-del btn-sm" onclick="deleteKey('${key}')">Xoa</button>
-                </div>
-            </td>
-        </tr>`;
-    }
-    tbody.innerHTML = html;
 }
 
 document.getElementById('inp1').addEventListener('keydown', e => { if (e.key === 'Enter') addAndCheck1(); });
